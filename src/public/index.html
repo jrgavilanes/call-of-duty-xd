@@ -1,14 +1,191 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Real-Time HUD</title>
+    <!-- MapLibre -->
+    <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        .hud-overlay { pointer-events: none; }
+        .hud-overlay * { pointer-events: auto; }
+        .marker-label {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-family: monospace;
+            white-space: nowrap;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        /* HUD Style */
+        .hud-panel {
+            background: rgba(10, 20, 10, 0.8);
+            border: 1px solid #00ff00;
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+            color: #00ff00;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
 </head>
+<body class="bg-black">
+    <div id="app" class="relative w-screen h-screen">
+        <div id="map"></div>
 
-<body>
-    <h1>Hola mundo</h1>
+        <!-- Identity Overlay -->
+        <div v-if="!joined" class="absolute inset-0 flex items-center justify-center bg-black/80 z-50 p-4">
+            <div class="hud-panel p-6 rounded-lg w-full max-w-sm">
+                <h2 class="text-xl mb-4 uppercase tracking-widest border-b border-green-500 pb-2">Identify Yourself</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs mb-1">CALLSIGN</label>
+                        <input v-model="name" type="text" class="w-full bg-black border border-green-500 p-2 text-green-500 focus:outline-none focus:ring-1 focus:ring-green-400" placeholder="ENTER NAME...">
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1">HUD COLOR</label>
+                        <input v-model="color" type="color" class="w-full h-10 bg-transparent border border-green-500 p-1 cursor-pointer">
+                    </div>
+                    <button @click="join" class="w-full bg-green-500 text-black font-bold p-3 hover:bg-green-400 transition-colors uppercase">Initialize Link</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- HUD UI (Top Left) -->
+        <div v-if="joined" class="hud-overlay absolute top-4 left-4 z-10">
+            <div class="hud-panel px-4 py-2 rounded-sm text-xs">
+                <div>SYSTEM: ACTIVE</div>
+                <div>ID: {{ myId?.substring(0,8) }}</div>
+                <div>LAT: {{ myPos.lat.toFixed(5) }}</div>
+                <div>LNG: {{ myPos.lng.toFixed(5) }}</div>
+                <div class="mt-1 border-t border-green-900 pt-1">USERS ONLINE: {{ Object.keys(users).length + 1 }}</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const joined = ref(false);
+                const name = ref('');
+                const color = ref('#00ff00');
+                const myId = ref(null);
+                const myPos = reactive({ lng: -0.443, lat: 39.502 });
+                const users = reactive({});
+                const markers = {};
+                let map = null;
+                let socket = null;
+
+                const initMap = () => {
+                    map = new maplibregl.Map({
+                        container: 'map',
+                        style: 'https://tiles.openfreemap.org/styles/liberty',
+                        center: [myPos.lng, myPos.lat],
+                        zoom: 16
+                    });
+                };
+
+                const join = () => {
+                    if (!name.value) return alert('Enter a callsign');
+                    
+                    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                    socket = new WebSocket(`${protocol}//${window.location.host}`);
+
+                    socket.onopen = () => {
+                        socket.send(JSON.stringify({
+                            type: 'join',
+                            name: name.value,
+                            color: color.value,
+                            pos: myPos
+                        }));
+                    };
+
+                    socket.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        
+                        switch (data.type) {
+                            case 'init':
+                                myId.value = data.yourId;
+                                data.users.forEach(u => updateUserMarker(u));
+                                joined.value = true;
+                                createMyMarker();
+                                break;
+                            case 'user-joined':
+                                updateUserMarker(data.user);
+                                break;
+                            case 'user-moved':
+                                updateUserMarker({ id: data.id, pos: data.pos }, true);
+                                break;
+                            case 'user-left':
+                                removeUserMarker(data.id);
+                                break;
+                        }
+                    };
+                };
+
+                const createMyMarker = () => {
+                    const el = document.createElement('div');
+                    el.className = 'my-marker';
+                    el.innerHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${color.value};border:2px solid white;box-shadow:0 0 10px ${color.value}"></div>
+                                    <div class="marker-label">${name.value} (YOU)</div>`;
+                    
+                    const marker = new maplibregl.Marker({ element: el, draggable: true })
+                        .setLngLat([myPos.lng, myPos.lat])
+                        .addTo(map);
+
+                    marker.on('dragend', () => {
+                        const lngLat = marker.getLngLat();
+                        myPos.lng = lngLat.lng;
+                        myPos.lat = lngLat.lat;
+                        socket.send(JSON.stringify({
+                            type: 'move',
+                            pos: { lng: lngLat.lng, lat: lngLat.lat }
+                        }));
+                    });
+                };
+
+                const updateUserMarker = (user, moveOnly = false) => {
+                    if (user.id === myId.value) return;
+
+                    if (!markers[user.id]) {
+                        const el = document.createElement('div');
+                        el.innerHTML = `<div style="width:16px;height:16px;border-radius:50%;background:${user.color};border:2px solid white;"></div>
+                                        <div class="marker-label">${user.name}</div>`;
+                        
+                        markers[user.id] = new maplibregl.Marker({ element: el })
+                            .setLngLat([user.pos.lng, user.pos.lat])
+                            .addTo(map);
+                        users[user.id] = user;
+                    } else {
+                        markers[user.id].setLngLat([user.pos.lng, user.pos.lat]);
+                        users[user.id].pos = user.pos;
+                    }
+                };
+
+                const removeUserMarker = (id) => {
+                    if (markers[id]) {
+                        markers[id].remove();
+                        delete markers[id];
+                        delete users[id];
+                    }
+                };
+
+                onMounted(() => {
+                    initMap();
+                });
+
+                return { joined, name, color, myId, myPos, users, join };
+            }
+        }).mount('#app');
+    </script>
 </body>
-
 </html>
