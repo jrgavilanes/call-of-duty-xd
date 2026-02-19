@@ -29,9 +29,41 @@ The UI SHALL display and synchronize markers for all connected users in real-tim
 - **WHEN** a `user-left` message is received from the server
 - **THEN** the corresponding marker MUST be removed from the map
 
-### Requirement: Draggable Movement Simulation
-The user's own marker SHALL be draggable to simulate movement.
+### Requirement: Automatic Map View Fitting (Auto-Zoom)
+The map SHALL automatically adjust its center and zoom level to ensure all active users are visible within the current viewport.
 
-#### Scenario: Dragging local marker
-- **WHEN** the user finishes dragging their marker to a new position
+#### Scenario: User joins or moves
+- **WHEN** any user's position changes or a new user joins
+- **THEN** the map MUST calculate a bounding box encompassing all markers and transition the camera to fit this box with appropriate padding
+
+### Requirement: "Center on Me" UI Control
+The map UI SHALL include a button to immediately center the view on the user's current coordinates, positioned safely for mobile browser interfaces.
+
+#### Scenario: Button positioning
+- **WHEN** the UI renders
+- **THEN** the "Center on Me" button MUST be positioned at the top-right with at least 50px padding to avoid overlap with mobile browser UI elements
+
+### Requirement: Tactical Logout Control
+The map UI SHALL include a logout button to terminate the session and clear identity.
+
+#### Scenario: User clicks logout
+- **WHEN** the logout button is clicked
+- **THEN** the application MUST clear stored identity from local storage, close the WebSocket connection, and return to the identity setup screen
+
+### Requirement: PWA Integration
+The application SHALL be installable as a Progressive Web App (PWA) to provide an app-like experience.
+
+#### Scenario: Add to home screen
+- **WHEN** the user chooses to "Add to home screen" or "Install"
+- **THEN** the application MUST open in standalone mode (without browser address bar) and display the configured tactical icon
+
+### Requirement: Draggable Movement Simulation
+The user's own marker SHALL be draggable to simulate movement, but only on desktop/large screens.
+
+#### Scenario: Dragging on large screen
+- **WHEN** the user is on a desktop/large screen device and finishes dragging their marker
 - **THEN** the new coordinates MUST be sent to the server via WebSocket
+
+#### Scenario: Dragging disabled on mobile
+- **WHEN** the user is on a mobile device
+- **THEN** the user's marker MUST NOT be draggable

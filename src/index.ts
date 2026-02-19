@@ -11,15 +11,24 @@ const users = new Map<string, UserState>();
 
 const server = Bun.serve<{ socketId: string }>({
     port: 3001,
-    routes: {
-        "/": index,
-    },
-    fetch(req, server) {
+    async fetch(req, server) {
+        // 1. Intentar upgrade de WebSocket primero
         const socketId = crypto.randomUUID();
         if (server.upgrade(req, { data: { socketId } })) {
             return;
         }
-        return new Response("Upgrade failed", { status: 500 });
+
+        const url = new URL(req.url);
+
+        // 2. Rutas estáticas si no es un WebSocket
+        if (url.pathname === "/") {
+            return new Response(Bun.file("./src/public/index.html"), { headers: { "Content-Type": "text/html" } });
+        }
+        if (url.pathname === "/manifest.json") return new Response(Bun.file("./src/public/manifest.json"), { headers: { "Content-Type": "application/manifest+json" } });
+        if (url.pathname === "/sw.js") return new Response(Bun.file("./src/public/sw.js"), { headers: { "Content-Type": "application/javascript" } });
+        if (url.pathname === "/icon-512.png") return new Response(Bun.file("./src/public/icon-512.png"), { headers: { "Content-Type": "image/png" } });
+
+        return new Response("Not Found", { status: 404 });
     },
     websocket: {
         open(ws) {

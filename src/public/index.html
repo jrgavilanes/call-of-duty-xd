@@ -1,9 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Real-Time HUD</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="COD HUD">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="manifest.json">
     <!-- MapLibre -->
     <script src="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@latest/dist/maplibre-gl.css" rel="stylesheet" />
@@ -12,10 +22,27 @@
     <!-- Vue 3 CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; }
-        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-        .hud-overlay { pointer-events: none; }
-        .hud-overlay * { pointer-events: auto; }
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .hud-overlay {
+            pointer-events: none;
+        }
+
+        .hud-overlay * {
+            pointer-events: auto;
+        }
+
         .marker-label {
             background: rgba(0, 0, 0, 0.7);
             color: white;
@@ -26,6 +53,7 @@
             white-space: nowrap;
             border: 1px solid rgba(255, 255, 255, 0.3);
         }
+
         /* HUD Style */
         .hud-panel {
             background: rgba(10, 20, 10, 0.8);
@@ -36,6 +64,7 @@
         }
     </style>
 </head>
+
 <body class="bg-black">
     <div id="app" class="relative w-screen h-screen">
         <div id="map"></div>
@@ -47,26 +76,59 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs mb-1">CALLSIGN</label>
-                        <input v-model="name" type="text" class="w-full bg-black border border-green-500 p-2 text-green-500 focus:outline-none focus:ring-1 focus:ring-green-400" placeholder="ENTER NAME...">
+                        <input v-model="name" type="text"
+                            class="w-full bg-black border border-green-500 p-2 text-green-500 focus:outline-none focus:ring-1 focus:ring-green-400"
+                            placeholder="ENTER NAME...">
                     </div>
                     <div>
                         <label class="block text-xs mb-1">HUD COLOR</label>
-                        <input v-model="color" type="color" class="w-full h-10 bg-transparent border border-green-500 p-1 cursor-pointer">
+                        <input v-model="color" type="color"
+                            class="w-full h-10 bg-transparent border border-green-500 p-1 cursor-pointer">
                     </div>
-                    <button @click="join" class="w-full bg-green-500 text-black font-bold p-3 hover:bg-green-400 transition-colors uppercase">Initialize Link</button>
+                    <button @click="join"
+                        class="w-full bg-green-500 text-black font-bold p-3 hover:bg-green-400 transition-colors uppercase">Initialize
+                        Link</button>
                 </div>
             </div>
         </div>
 
         <!-- HUD UI (Top Left) -->
-        <div v-if="joined" class="hud-overlay absolute top-4 left-4 z-10">
+        <div v-if="joined" class="hud-overlay absolute top-4 left-4 z-10 space-y-2">
             <div class="hud-panel px-4 py-2 rounded-sm text-xs">
-                <div>SYSTEM: ACTIVE</div>
+                <div class="flex justify-between items-center">
+                    <span>SYSTEM: ACTIVE</span>
+                    <span :class="{
+                        'text-green-500': gpsStatus === 'ACTIVE',
+                        'text-yellow-500': gpsStatus === 'SEARCHING',
+                        'text-red-500': gpsStatus === 'DENIED'
+                    }">GPS: {{ gpsStatus }}</span>
+                </div>
                 <div>ID: {{ myId?.substring(0,8) }}</div>
                 <div>LAT: {{ myPos.lat.toFixed(5) }}</div>
                 <div>LNG: {{ myPos.lng.toFixed(5) }}</div>
                 <div class="mt-1 border-t border-green-900 pt-1">USERS ONLINE: {{ Object.keys(users).length + 1 }}</div>
             </div>
+        </div>
+
+        <!-- Navigation Controls (Top Right) -->
+        <div v-if="joined" class="hud-overlay absolute top-[10px] right-[10px] z-10 flex flex-col gap-2">
+            <button @click="centerOnMe"
+                class="w-14 h-14 bg-black/80 border-2 border-green-500 rounded-full flex items-center justify-center text-green-500 shadow-[0_0_15px_rgba(0,255,0,0.3)] hover:bg-green-500 hover:text-black transition-all active:scale-95 group"
+                title="Center on My Location">
+                <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="9" />
+                    <circle cx="12" cy="12" r="2" fill="currentColor" />
+                    <path d="M12 3v2M12 19v2M3 12h2M19 12h2" />
+                </svg>
+            </button>
+
+            <button @click="logout"
+                class="w-14 h-14 bg-black/80 border-2 border-red-500 rounded-full flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(255,0,0,0.2)] hover:bg-red-500 hover:text-white transition-all active:scale-95"
+                title="Logout">
+                <svg viewBox="0 0 24 24" class="h-7 w-7" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                </svg>
+            </button>
         </div>
     </div>
 
@@ -81,22 +143,124 @@
                 const myId = ref(null);
                 const myPos = reactive({ lng: -0.443, lat: 39.502 });
                 const users = reactive({});
+                const gpsStatus = ref('SEARCHING'); // SEARCHING, ACTIVE, DENIED
                 const markers = {};
                 let map = null;
                 let socket = null;
+                let myMarker = null;
+
+                const isMobile = () => {
+                    return window.innerWidth < 1024;
+                };
+
+                const updateMyPosition = (pos) => {
+                    const newLng = pos.coords.longitude;
+                    const newLat = pos.coords.latitude;
+
+                    // Filtro de movimiento: solo actualizamos si se ha movido más de ~1 metro
+                    // o si es la primera vez que recibimos señal.
+                    const dist = Math.sqrt(Math.pow(newLng - myPos.lng, 2) + Math.pow(newLat - myPos.lat, 2));
+
+                    if (gpsStatus.value !== 'ACTIVE' || dist > 0.00001) {
+                        myPos.lng = newLng;
+                        myPos.lat = newLat;
+                        gpsStatus.value = 'ACTIVE';
+
+                        if (myMarker) {
+                            myMarker.setLngLat([newLng, newLat]);
+                        }
+
+                        if (joined.value && socket && socket.readyState === WebSocket.OPEN) {
+                            socket.send(JSON.stringify({
+                                type: 'move',
+                                pos: { lng: myPos.lng, lat: myPos.lat }
+                            }));
+                        }
+                    }
+                };
+
+                const initGeolocation = () => {
+                    if (!navigator.geolocation) {
+                        gpsStatus.value = 'DENIED';
+                        return;
+                    }
+
+                    const geoOptions = {
+                        enableHighAccuracy: true,
+                        timeout: 30000, // Aumentado a 30s para evitar Timeouts
+                        maximumAge: 0
+                    };
+
+                    let firstFix = true;
+                    navigator.geolocation.watchPosition(
+                        (pos) => {
+                            if (pos && pos.coords) {
+                                updateMyPosition(pos);
+                                if (firstFix && map) {
+                                    map.setCenter([myPos.lng, myPos.lat]);
+                                    debouncedFit();
+                                    firstFix = false;
+                                }
+                            }
+                        },
+                        (err) => {
+                            // Solo mostramos error si es denegado (1). 
+                            // El error 3 (timeout) es común y se recupera solo.
+                            if (err.code === 1) gpsStatus.value = 'DENIED';
+                            console.log(`GPS Status: ${err.code} - ${err.message}`);
+                        },
+                        geoOptions
+                    );
+                };
 
                 const initMap = () => {
                     map = new maplibregl.Map({
                         container: 'map',
                         style: 'https://tiles.openfreemap.org/styles/liberty',
-                        center: [myPos.lng, myPos.lat],
+                        center: [myPos.lng || -0.443, myPos.lat || 39.502],
                         zoom: 16
                     });
+
+                    // Silenciar warnings de iconos faltantes (office, atm, etc)
+                    map.on('styleimagemissing', () => {});
+
+                    window.addEventListener('resize', () => {
+                        fitAllUsers();
+                    });
+                };
+
+                const fitAllUsers = () => {
+                    if (!map) return;
+
+                    const bounds = new maplibregl.LngLatBounds();
+                    bounds.extend([myPos.lng, myPos.lat]);
+
+                    Object.values(users).forEach(u => {
+                        bounds.extend([u.pos.lng, u.pos.lat]);
+                    });
+
+                    if (!bounds.isEmpty()) {
+                        map.fitBounds(bounds, {
+                            padding: 50,
+                            maxZoom: 16,
+                            duration: 1000
+                        });
+                    }
+                };
+
+                let fitTimeout = null;
+                const debouncedFit = () => {
+                    if (fitTimeout) clearTimeout(fitTimeout);
+                    fitTimeout = setTimeout(fitAllUsers, 500);
                 };
 
                 const join = () => {
                     if (!name.value) return alert('Enter a callsign');
-                    
+
+                    // Persist identity
+                    localStorage.setItem('hud_callsign', name.value);
+                    localStorage.setItem('hud_color', color.value);
+
                     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                     socket = new WebSocket(`${protocol}//${window.location.host}`);
 
@@ -111,22 +275,26 @@
 
                     socket.onmessage = (event) => {
                         const data = JSON.parse(event.data);
-                        
+
                         switch (data.type) {
                             case 'init':
                                 myId.value = data.yourId;
                                 data.users.forEach(u => updateUserMarker(u));
                                 joined.value = true;
                                 createMyMarker();
+                                debouncedFit();
                                 break;
                             case 'user-joined':
                                 updateUserMarker(data.user);
+                                debouncedFit();
                                 break;
                             case 'user-moved':
                                 updateUserMarker({ id: data.id, pos: data.pos }, true);
+                                debouncedFit();
                                 break;
                             case 'user-left':
                                 removeUserMarker(data.id);
+                                debouncedFit();
                                 break;
                         }
                     };
@@ -137,13 +305,13 @@
                     el.className = 'my-marker';
                     el.innerHTML = `<div style="width:20px;height:20px;border-radius:50%;background:${color.value};border:2px solid white;box-shadow:0 0 10px ${color.value}"></div>
                                     <div class="marker-label">${name.value} (YOU)</div>`;
-                    
-                    const marker = new maplibregl.Marker({ element: el, draggable: true })
+
+                    myMarker = new maplibregl.Marker({ element: el, draggable: !isMobile() })
                         .setLngLat([myPos.lng, myPos.lat])
                         .addTo(map);
 
-                    marker.on('dragend', () => {
-                        const lngLat = marker.getLngLat();
+                    myMarker.on('dragend', () => {
+                        const lngLat = myMarker.getLngLat();
                         myPos.lng = lngLat.lng;
                         myPos.lat = lngLat.lat;
                         socket.send(JSON.stringify({
@@ -160,7 +328,7 @@
                         const el = document.createElement('div');
                         el.innerHTML = `<div style="width:16px;height:16px;border-radius:50%;background:${user.color};border:2px solid white;"></div>
                                         <div class="marker-label">${user.name}</div>`;
-                        
+
                         markers[user.id] = new maplibregl.Marker({ element: el })
                             .setLngLat([user.pos.lng, user.pos.lat])
                             .addTo(map);
@@ -179,13 +347,67 @@
                     }
                 };
 
+                const centerOnMe = () => {
+                    if (map) {
+                        map.flyTo({
+                            center: [myPos.lng, myPos.lat],
+                            zoom: 16,
+                            speed: 1.5
+                        });
+                    }
+                };
+
+                const logout = () => {
+                    // 1. Limpiar persistencia
+                    localStorage.removeItem('hud_callsign');
+                    localStorage.removeItem('hud_color');
+
+                    // 2. Cerrar socket (el backend limpiará automáticamente el usuario al cerrar)
+                    if (socket) {
+                        socket.close();
+                        socket = null;
+                    }
+
+                    // 3. Limpiar mapa y estado local
+                    if (myMarker) {
+                        myMarker.remove();
+                        myMarker = null;
+                    }
+                    
+                    Object.keys(markers).forEach(id => removeUserMarker(id));
+                    
+                    // 4. Reset UI
+                    joined.value = false;
+                    name.value = '';
+                    color.value = '#00ff00';
+                    myId.value = null;
+                };
+
                 onMounted(() => {
                     initMap();
+                    initGeolocation();
+
+                    // Register Service Worker for PWA
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.register('sw.js')
+                            .then(reg => console.log('SW Registered'))
+                            .catch(err => console.log('SW Failed', err));
+                    }
+
+                    // Auto-join if session exists
+                    const savedName = localStorage.getItem('hud_callsign');
+                    const savedColor = localStorage.getItem('hud_color');
+                    if (savedName) {
+                        name.value = savedName;
+                        color.value = savedColor || '#00ff00';
+                        join();
+                    }
                 });
 
-                return { joined, name, color, myId, myPos, users, join };
+                return { joined, name, color, myId, myPos, users, join, gpsStatus, centerOnMe, logout };
             }
         }).mount('#app');
     </script>
 </body>
+
 </html>
