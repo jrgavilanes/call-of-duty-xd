@@ -1,0 +1,14 @@
+example.com {
+    # Reverse proxy to the Bun server
+    reverse_proxy localhost:3001
+
+    # Caddy handles WebSockets automatically
+    
+    # Optional: Log requests
+    log {
+        output file /var/log/caddy/cod-hud.log
+    }
+
+    # Optional: Compression
+    encode gzip zstd
+}
