@@ -47,6 +47,61 @@ bun run src/index.ts
 
 The server will be available at `http://localhost:3001`.
 
+## 🚢 Deployment
+
+### 📦 Docker (Production)
+
+To run the application in production using Docker:
+
+1. **Build the image**:
+   ```bash
+   docker compose build
+   ```
+
+2. **Run the container**:
+   ```bash
+   docker compose up -d
+   ```
+
+The application will be accessible at `http://localhost:3001`.
+
+### 🏗️ CI/CD to GitHub Container Registry (GHCR)
+
+The project includes a `deploy.sh` script to automate building and pushing images to GHCR.
+
+1. **Authenticate with GitHub**:
+   Create a [Personal Access Token (classic)](https://github.com/settings/tokens) with `write:packages` and `read:packages` scopes.
+   
+   ```bash
+   echo $YOUR_GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password-stdin
+   ```
+
+2. **Deploy a new version**:
+   The script will automatically use the short git commit hash as the version tag.
+   
+   ```bash
+   ./deploy.sh
+   ```
+
+### 🌐 VPS Setup (Caddy)
+
+For hosting on a VPS with automatic SSL and WebSocket support, we recommend using **Caddy**.
+
+1. **Install Caddy** on your VPS.
+2. **Configure the Caddyfile**:
+   Update the provided `Caddyfile` with your domain:
+   ```caddy
+   example.com {
+       reverse_proxy localhost:3001
+   }
+   ```
+3. **Restart Caddy**:
+   ```bash
+   sudo systemctl reload caddy
+   ```
+
+Caddy will automatically handle Let's Encrypt SSL certificates and forward WebSockets to the Bun server.
+
 ## 🛠️ Tech Stack
 
 - **Backend**: [Bun.js](https://bun.sh/) (Server & WebSockets)
