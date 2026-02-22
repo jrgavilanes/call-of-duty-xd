@@ -49,19 +49,30 @@ The server will be available at `http://localhost:3001`.
 
 ## 🚢 Deployment
 
-### 📦 Docker (Production)
+### 📦 Docker Deployment
 
-To run the application in production using Docker:
+The project provides two ways to run the application using Docker, depending on your needs.
 
-1. **Build the image**:
-   ```bash
-   docker compose build
-   ```
+#### 🛠️ Local Development (Build from Source)
 
-2. **Run the container**:
-   ```bash
-   docker compose up -d
-   ```
+Ideal for testing local changes. This builds the image from your current source code:
+
+```bash
+docker compose -f docker-compose-dev.yml up
+```
+
+Or using the shorthand script:
+```bash
+bun run dev:docker
+```
+
+#### 🚀 Production (Registry Image)
+
+Recommended for VPS deployment. This pulls the latest pre-built image from the GitHub Container Registry:
+
+```bash
+docker compose up -d
+```
 
 The application will be accessible at `http://localhost:3001`.
 

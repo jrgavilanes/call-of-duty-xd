@@ -5,7 +5,8 @@
   "private": true,
   "scripts": {
     "start": "bun run src/index.ts",
-    "dev": "bun run --hot src/index.ts"
+    "dev": "bun run --hot src/index.ts",
+    "dev:docker": "docker compose -f docker-compose-dev.yml up"
   },
   "devDependencies": {
     "@types/bun": "latest"

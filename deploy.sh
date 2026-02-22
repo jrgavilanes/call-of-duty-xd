@@ -11,20 +11,17 @@ TAG_LATEST="${IMAGE_NAME}:latest"
 
 echo "🚀 Starting deployment process for version: ${VERSION}..."
 
-# 1. Build the image
-echo "🔨 Building Docker image..."
-docker build -t "${TAG_VERSION}" .
+# 1. Build and push multi-platform images
+# Note: This requires a docker buildx builder that supports multiple platforms
+# If you haven't created one: docker buildx create --use
+echo "🔨 Building and pushing multi-platform Docker images..."
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  -t "${TAG_VERSION}" \
+  -t "${TAG_LATEST}" \
+  --push \
+  .
 
-# 2. Tag as latest
-echo "🏷️ Tagging image as latest..."
-docker tag "${TAG_VERSION}" "${TAG_LATEST}"
-
-# 3. Push to GHCR
-# Note: Ensure you are logged in via 'docker login ghcr.io'
-echo "📤 Pushing images to GitHub Container Registry..."
-docker push "${TAG_VERSION}"
-docker push "${TAG_LATEST}"
-
-echo "✅ Deployment successful! Images pushed:"
+echo "✅ Deployment successful! Images built and pushed for linux/amd64,linux/arm64:"
 echo "   - ${TAG_VERSION}"
 echo "   - ${TAG_LATEST}"

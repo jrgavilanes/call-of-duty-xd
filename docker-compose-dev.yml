@@ -1,6 +1,8 @@
 services:
   app:
-    image: ghcr.io/jrgavilanes/call-of-duty-xd:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: cod-hud-server
     restart: unless-stopped
     ports:
